@@ -1,0 +1,75 @@
+.button-style {
+	display: inline-block;
+	position: relative;
+	line-height: 34px;
+	font-size: 13px;
+	color: @btn-font-color;
+	min-width: 136px;
+	text-align: center;
+	padding: 0 1rem;
+	z-index: 1;
+	&:after {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: url('../images/button.png') no-repeat;
+		background-size: contain;
+	}
+	&:before {
+		content: '';
+		position: absolute;
+		background-color: #eaf5fc;
+		top: 6px;
+		left: 6px;
+		bottom: -5px;
+		right: -5px;
+		display: block;
+		.border-radius(18/15rem);
+		z-index: -1;
+		.translate(0, 0);
+		.transition(~'transform .3s');
+		//bottom:;
+		pointer-events: none;
+	}
+	span {
+		&:after {
+			content: '\f105';
+			font-family: 'FontAwesome';
+			font-size: 12px;
+			position: absolute;
+			top: 50%;
+			.translateY(-50%);
+			right: 34/15rem;
+			margin-top: 1px;
+			.transition(right .3s);
+		}
+	}
+
+	&:hover {
+		color: @btn-font-color;
+		&:before {
+			.translate(-6px, -6px);
+		}
+		span {
+			&:after {
+				right: 20/15rem;
+			}
+		}
+	}
+}
+
+.button {
+	background: @COLOR-red;
+	border: 0;
+	font-size: 24/16rem;
+	font-weight: 700;
+	color: #fff;
+	padding: 32/16rem 1rem;
+
+	&:hover {
+		background: @COLOR-blue;
+	}
+}
