@@ -22,6 +22,8 @@ main {
 		.options {
 			.display();
 			.align-items(center);
+
+			width: 470px;
 		}
 	}
 
@@ -99,12 +101,14 @@ main {
 		.display();
 		.align-items(center);
 		.justify-content(flex-end);
+		.flex-wrap(wrap);
+		.calc(width, ~'100% - 470px');
 	}
 
 	button, .button {
 		width: 3rem;
 		height: 3rem;
-		margin: 0 .5rem;
+		margin: .5rem;
 		display: block;
 		border: 1px solid @COLOR-light;
 		outline: 0;
@@ -157,6 +161,59 @@ main {
 			background-position: center;
 		}
 
+		&[data-for="mark"] {
+			background: url('../images/mark.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="pipette"] {
+			background: url('../images/pipette.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="rubber"] {
+			background: url('../images/rubber.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="text"] {
+			background: url('../images/text.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="cube"] {
+			background: url('../images/cube.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="cone"] {
+			background: url('../images/cone.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="cylinder"] {
+			background: url('../images/cylinder.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="octahedron"] {
+			background: url('../images/octahedron.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
+
+		&[data-for="heart"] {
+			background: url('../images/heart.svg') no-repeat;
+			background-size: 80%;
+			background-position: center;
+		}
 
 		&.active {
 			border: 2px solid @COLOR-purple;

@@ -13,6 +13,7 @@ const paint = {
         ctx.lineCap = "round"; //Draw a line with rounded end caps
         ctx.strokeStyle = this.menu.color.value;
         ctx.fillStyle = this.menu.color.value;
+        ctx.font = "30px Arial";
     },
 
     rgbToHex: function (r, g, b) {
@@ -32,21 +33,58 @@ const paint = {
             this.pasteImageToMainCanvas();
         }
 
+        if (this.mode === 'mark') {
+            this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
+            if (mode === 'delete') {
+                this.ctx.clearRect(this.mark.startX, this.mark.startY, this.mark.endX, this.mark.endY);
+            }
+            this.setMark(0, 0, 0, 0);
+        }
+
+        if (this.mode === 'text') {
+            this.ctx.drawImage(this.canvasHelper, 0, 0);
+            this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
+        }
+
         if (mode === 'image' && !this.checkImage()) {
             return false;
         }
 
-        if(mode === 'delete') {
+        if (mode === 'delete' && this.mode != 'mark') {
             this.ctx.fillStyle = "#fff";
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.initSets();
             return false;
         }
 
-        if(mode === 'save') {
+
+
+        if(this.models3d.indexOf(mode) > -1) {
+            if (this.models3d.indexOf(this.mode) > -1) {
+                this.setMode('draw');
+                return false;
+            }
+            else {
+                this.init3d(mode);
+            }
+        }
+
+        if (this.models3d.indexOf(this.mode) > -1) {
+            var gl = this.renderer.getContext();
+            this.ctx.drawImage(gl.canvas, 0, 0);
+            cancelAnimationFrame(this.animationID);
+            this.renderer.clear();
+            this.camera = false;
+            this.controls = false;
+            this.scene = false;
+            this.mesh = false;
+            this.renderer = false;
+            this.canvas3d.parentNode.removeChild(this.canvas3d);
+        }
+
+        if (mode === 'save') {
             var image = this.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");  // here is the most important part because if you dont replace you will get a DOM 18 exception.
             document.querySelector('.km-paint a[data-for="save"]').href = image;
-
             return false;
         }
 
@@ -65,6 +103,9 @@ const paint = {
         this.menu.size.addEventListener('change', this.changeSize.bind(this));
         this.menu.size.addEventListener('input', this.changeSize.bind(this));
 
+        this.menu.imgSize.addEventListener('change', this.changeImgSize.bind(this));
+        this.menu.imgSize.addEventListener('input', this.changeImgSize.bind(this));
+
         this.menu.color.addEventListener('change', this.changeColor.bind(this));
 
         this.canvasOuter.addEventListener('mousemove', this.mouseMove.bind(this));
@@ -72,6 +113,8 @@ const paint = {
         this.canvasOuter.addEventListener('mousedown', this.mouseEnable.bind(this));
 
         document.addEventListener('paste', this.paste.bind(this));
+
+        document.addEventListener('keydown', this.setString.bind(this));
 
         this.btns.forEach(el => {
             el.addEventListener('click', e => {
@@ -86,24 +129,39 @@ const paint = {
         this.ctxHelper.lineWidth = e.target.value;
     },
 
-    changeColor: function (e) {
-        this.ctx.strokeStyle = e.target.value;
-        this.ctxHelper.strokeStyle = e.target.value;
+
+    changeImgSize: function (e) {
+        this.menu.imgSizeVal.innerText = e.target.value;
+
+        if (this.checkImage()) {
+            this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
+            this.ctxHelper.drawImage(this.pastedImage, this.imgX, this.imgY, this.imgWidth * parseFloat(this.menu.imgSize.value), this.imgHeight * parseFloat(this.menu.imgSize.value));
+
+            this.ctxHelper.beginPath();
+            this.ctxHelper.rect(this.imgX, this.imgY, this.imgWidth * parseFloat(this.menu.imgSize.value), this.imgHeight * parseFloat(this.menu.imgSize.value));
+            this.ctxHelper.closePath();
+            this.ctxHelper.stroke();
+        }
+    },
+
+    changeColor: function (e, directValue) {
+        directValue = typeof directValue === 'undefined' ? false : directValue;
+        this.ctx.strokeStyle = directValue ? e : e.target.value;
+        this.ctxHelper.strokeStyle = directValue ? e : e.target.value;
     },
 
     mouseMove: function (e) {
         if (this.canDraw) {
             const mousePos = this.getMousePos(e);
 
-            if (this.mode === 'draw') {
-                this.ctx.lineTo(mousePos.x, mousePos.y);
-                this.ctx.stroke();
-            }
-
             switch (this.mode) {
                 case 'draw':
                     this.ctx.lineTo(mousePos.x, mousePos.y);
                     this.ctx.stroke();
+                    break;
+                case 'rubber':
+                    let width = (0.5 * this.menu.size.value);
+                    this.ctx.clearRect(parseInt(mousePos.x - width, 10), parseInt(mousePos.y - width, 10), width, width);
                     break;
                 case 'line':
                     this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
@@ -121,6 +179,15 @@ const paint = {
                     this.ctxHelper.closePath();
                     this.ctxHelper.stroke();
                     break;
+                case 'mark':
+                    this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
+                    this.ctxHelper.beginPath();
+                    this.ctxHelper.moveTo(this.startX, this.startY);
+                    this.ctxHelper.rect(this.startX, this.startY, mousePos.x - this.startX, mousePos.y - this.startY);
+                    this.ctxHelper.closePath();
+                    this.ctxHelper.stroke();
+                    this.setMark(this.startX, this.startY, mousePos.x - this.startX, mousePos.y - this.startY);
+                    break;
                 case 'circle':
                     this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
                     this.ctxHelper.beginPath();
@@ -130,13 +197,15 @@ const paint = {
                     break;
                 case 'image':
                     if (this.checkImage()) {
+                        let w = this.imgWidth * parseFloat(this.menu.imgSize.value);
+                        let h = this.imgHeight * parseFloat(this.menu.imgSize.value);
                         this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
-                        this.ctxHelper.drawImage(this.pastedImage, mousePos.x, mousePos.y);
-                        this.imgX = mousePos.x;
-                        this.imgY = mousePos.y;
+                        this.ctxHelper.drawImage(this.pastedImage, mousePos.x - (0.5 * w), mousePos.y - (0.5 * h), w, h);
+                        this.imgX = mousePos.x - (0.5 * w);
+                        this.imgY = mousePos.y - (0.5 * h);
 
                         this.ctxHelper.beginPath();
-                        this.ctxHelper.rect(mousePos.x, mousePos.y, this.imgWidth, this.imgHeight);
+                        this.ctxHelper.rect(mousePos.x - (0.5 * w), mousePos.y - (0.5 * h), w, h);
                         this.ctxHelper.closePath();
                         this.ctxHelper.stroke();
                     }
@@ -145,6 +214,7 @@ const paint = {
                     break;
             }
         }
+
     },
 
     mouseDisable: function (e) {
@@ -163,12 +233,33 @@ const paint = {
         this.startX = mousePos.x;
         this.startY = mousePos.y;
 
-        if (this.mode === 'paint') {
+        if (this.mode === 'text') {
+            this.enableKeyboard = true;
+            this.keyboardText = '';
+        }
+        else if (this.mode === 'pipette') {
+            let p = this.ctx.getImageData(this.startX, this.startY, 1, 1).data;
+            this.menu.color.value = "#" + ("000000" + this.rgbToHex(p[0], p[1], p[2])).slice(-6);
+
+            this.changeColor(this.menu.color.value, true);
+        }
+        else if (this.mode === 'paint') {
             this.paint(this.startX, this.startY, this.ctx.getImageData(this.startX, this.startY, 1, 1).data);
         }
         else {
             this.ctx.beginPath();
             this.ctx.moveTo(this.startX, this.startY);
+        }
+    },
+
+    setString: function (e) {
+        if (this.enableKeyboard && this.allowedChars.includes(e.key)) {
+            this.keyboardText += (e.key != 'Enter' ? e.key : ' ');
+            this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
+            this.ctxHelper.fillText(this.keyboardText, this.startX, this.startY);
+            if (e.keyCode == 32 && e.target == document.body) {
+                e.preventDefault();
+            }
         }
     },
 
@@ -222,6 +313,7 @@ const paint = {
             if (imageData.data[(point.y * width + point.x) * 4 + 0] == oldColor[0] &&
                 imageData.data[(point.y * width + point.x) * 4 + 1] == oldColor[1] &&
                 imageData.data[(point.y * width + point.x) * 4 + 2] == oldColor[2]) {
+
                 imageData.data[(point.y * width + point.x) * 4 + 0] = newColor.r;
                 imageData.data[(point.y * width + point.x) * 4 + 1] = newColor.g;
                 imageData.data[(point.y * width + point.x) * 4 + 2] = newColor.b;
@@ -270,14 +362,14 @@ const paint = {
     pasteImage: function (source) {
         this.pastedImage = new Image();
         this.pastedImage.addEventListener('load', function () {
-            this.setMode('image');
             this.setImageSize(this.pastedImage.naturalWidth, this.pastedImage.naturalHeight);
             this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
-            this.ctxHelper.drawImage(this.pastedImage, 0, 0);
+            this.ctxHelper.drawImage(this.pastedImage, 0, 0, this.imgWidth * parseFloat(this.menu.imgSize.value), this.imgHeight * parseFloat(this.menu.imgSize.value));
             this.ctxHelper.beginPath();
-            this.ctxHelper.rect(0, 0, this.imgWidth, this.imgHeight);
+            this.ctxHelper.rect(0, 0, this.imgWidth * parseFloat(this.menu.imgSize.value), this.imgHeight * parseFloat(this.menu.imgSize.value));
             this.ctxHelper.closePath();
             this.ctxHelper.stroke();
+            this.setMode('image');
         }.bind(this));
         this.pastedImage.src = source;
     },
@@ -304,7 +396,7 @@ const paint = {
     pasteImageToMainCanvas: function () {
         if (this.checkImage()) {
             this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
-            this.ctxHelper.drawImage(this.pastedImage, this.imgX, this.imgY);
+            this.ctxHelper.drawImage(this.pastedImage, this.imgX, this.imgY, this.imgWidth * parseFloat(this.menu.imgSize.value), this.imgHeight * parseFloat(this.menu.imgSize.value));
 
             this.ctx.drawImage(this.canvasHelper, 0, 0);
             this.ctxHelper.clearRect(0, 0, this.canvasHelper.width, this.canvasHelper.height);
@@ -312,6 +404,84 @@ const paint = {
             this.setImageSize();
             this.pastedImage = false;
         }
+    },
+
+    setMark: function (sX, sY, eX, eY) {
+        this.mark.startX = sX;
+        this.mark.startY = sY;
+        this.mark.endX = eX;
+        this.mark.endY = eY;
+    },
+
+    animate: function () {
+        this.animationID = requestAnimationFrame(this.animate.bind(this));
+        // this.position.x+=0.05;
+        // this.position.y+=0.05;
+
+
+        // this.mesh.rotation.x += 0.005;
+        // this.mesh.rotation.y += 0.01;
+        this.mesh.position.set(this.position.x, this.position.y, this.position.z);
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+    },
+    init3d: function (geo) {
+        this.camera = new THREE.PerspectiveCamera(70, this.canvas.width / this.canvas.height, 1, 1000);
+        this.camera.position.z = 400;
+        this.scene = new THREE.Scene();
+        var texture = new THREE.TextureLoader().load('images/crate.gif');
+
+        var geometry;
+
+        switch (geo) {
+            case 'cone':
+                geometry = new THREE.ConeGeometry(50, 200, 32);
+                break;
+            case 'cylinder':
+                geometry = new THREE.CylinderGeometry(50, 50, 200, 32);
+                break;
+            case 'octahedron':
+                geometry = new THREE.OctahedronGeometry(100, 0);
+                break;
+            case 'heart':
+                var heartShape = new THREE.Shape();
+
+                let x = 0;
+                let y = 0;
+                heartShape.moveTo( x + 50, y + 50 );
+                heartShape.bezierCurveTo( x + 50, y + 50, x + 40, y, x, y );
+                heartShape.bezierCurveTo( x - 60, y, x - 60, y + 70,x - 60, y + 70 );
+                heartShape.bezierCurveTo( x - 60, y + 110, x - 30, y + 154, x + 50, y + 190 );
+                heartShape.bezierCurveTo( x + 120, y + 154, x + 160, y + 110, x + 160, y + 70 );
+                heartShape.bezierCurveTo( x + 160, y + 70, x + 160, y, x + 100, y );
+                heartShape.bezierCurveTo( x + 70, y, x + 50, y + 50, x + 50, y + 50 );
+
+                geometry = new THREE.ShapeGeometry(heartShape);
+                break;
+            case 'cube':
+            default:
+                geometry = new THREE.BoxBufferGeometry(200, 200, 200);
+                break;
+        }
+
+        var material = new THREE.MeshBasicMaterial({map: texture});
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.scene.add(this.mesh);
+        this.scene.updateMatrixWorld(true);
+        this.position = new THREE.Vector3();
+        this.position.getPositionFromMatrix( this.mesh.matrixWorld );
+
+        this.renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true, alpha: true});
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setSize(this.canvas.width, this.canvas.height);
+        this.renderer.domElement.classList.add('canvas-3d');
+        if (!(document.querySelector('.canvas .canvas-3d')))
+            this.canvasOuter.appendChild(this.renderer.domElement);
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.canvas3d = document.querySelector('.canvas .canvas-3d');
+
+        this.animate();
+
     },
 
     init: function () {
@@ -328,17 +498,33 @@ const paint = {
         this.canvasOuter.appendChild(this.canvasHelper);
         this.ctxHelper = this.canvasHelper.getContext('2d');
 
+
         this.menu = {
-            size: document.querySelector('.km-paint input[type="range"]'),
-            sizeVal: document.querySelector('.km-paint output'),
+            size: document.querySelector('.km-paint input[type="range"].range-size'),
+            sizeVal: document.querySelector('.km-paint output.size'),
+            imgSize: document.querySelector('.km-paint input[type="range"].range-img-size'),
+            imgSizeVal: document.querySelector('.km-paint output.img_size'),
             color: document.querySelector('.km-paint input[type="color"]'),
-        }
+        };
+
+        this.mark = {
+            startX: 0,
+            startY: 0,
+            endX: 0,
+            endY: 0
+        };
+
+        this.enableKeyboard = false;
+        this.keyboardText = '';
+        this.allowedChars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'w', 'x', 'y', 'z', 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, ' ', 'Enter'];
 
         this.menu.sizeVal.innerText = this.menu.size.value;
+        this.menu.imgSizeVal.innerText = this.menu.imgSize.value;
 
         this.btns = [].slice.call(document.querySelectorAll('.km-paint button, .km-paint .button'));
 
-        this.modes = ['draw', 'line', 'rect', 'circle', 'paint', 'image', 'delete', 'save'];
+        this.modes = ['draw', 'line', 'rect', 'circle', 'paint', 'image', 'delete', 'save', 'mark', 'pipette', 'rubber', 'text', 'cube', 'cone', 'cylinder', 'octahedron', 'heart'];
+        this.models3d = ['cube', 'cone', 'cylinder', 'octahedron', 'heart'];
         this.canDraw = false;
 
         this.setMode();

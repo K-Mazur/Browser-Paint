@@ -19,18 +19,29 @@
 			<div class="menu">
 				<div class="options">
 					<input type="color" id="color">
-					<input type="range" id="size" min="1" max="100" value="2">
-					<output for="size"></output>
+					<input type="range" id="size" class="range-size" min="1" max="100" value="2">
+					<output for="size" class="size"></output>
+					<input type="range" id="img_size" class="range-img-size" min="0.01" max="5" value="1" step="0.01">
+					<output for="img_size" class="img_size"></output>
 				</div>
 				<div class="buttons">
 					<button type="button" data-for="draw"></button>
+					<button type="button" data-for="pipette"></button>
+					<button type="button" data-for="rubber"></button>
+					<button type="button" data-for="text"></button>
 					<button type="button" data-for="line"></button>
+					<button type="button" data-for="mark"></button>
 					<button type="button" data-for="rect"></button>
 					<button type="button" data-for="circle"></button>
 					<button type="button" data-for="paint"></button>
 					<button type="button" data-for="image"></button>
-					<a href="#" class="button" download="image.png" data-for="save"></a>
+					<a href="#" class="button" download="image.png" data-for="save" title="save as PNG"></a>
 					<button type="button" data-for="delete"></button>
+					<button type="button" data-for="cube"></button>
+					<button type="button" data-for="cone"></button>
+					<button type="button" data-for="cylinder"></button>
+					<button type="button" data-for="octahedron"></button>
+					<button type="button" data-for="heart"></button>
 				</div>
 			</div>
 			<div class="canvas">
@@ -72,6 +83,8 @@
 	</div>
 </main>
 
+<script type="text/javascript" src="js/three.min.js"></script>
+<script type="text/javascript" src="js/controls/OrbitControls.js"></script>
 <script type="text/javascript" src="js/scripts.js"></script>
 </body>
 </html>
